@@ -4,7 +4,7 @@ var clients = {};
 var offers = [];
 
 
-const ws = new WebSocket.Server({ host: "10.0.11.47", port: 8080 });
+const ws = new WebSocket.Server({ host: "10.0.11.47", port: 8000 });
 
 ws.on('connection', function (ws) {
 
