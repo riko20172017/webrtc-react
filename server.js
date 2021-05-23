@@ -3,8 +3,10 @@ const https = require('https');
 const fs = require('fs');
 const WebSocket = require('ws');
 
-var clients = {};
+var clients = [];
 var offers = [];
+
+// process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
 class App {
     express;
@@ -13,14 +15,14 @@ class App {
     }
     startServer() {
         this.express = express();
-        const key = fs.readFileSync(__dirname + '/key.pem');
-        const cert = fs.readFileSync(__dirname + '/cert.pem');
+        const key = fs.readFileSync(__dirname + '/key1.pem');
+        const cert = fs.readFileSync(__dirname + '/cert1.pem');
         //  Set up routes (and middlewares if we had any)
         const router = express.Router();
         router.all('/', (req, res) => res.send('Hi there!'));
         this.express.use('/', router);
         //  Server creation starts here
-        const server = https.createServer({ key, cert }, this.express);
+        const server = https.createServer({ key, cert}, this.express);
         const port = 8000;
         server.listen(port, err => {
             if (err) {
@@ -30,43 +32,45 @@ class App {
             console.log('Server is listening on port ' + port);
         });
         const ws = new WebSocket.Server({ server: server });
-        ws.on('connection', function (ws) {
+        ws.on('connection', function (ws, eq) {
 
-            var id = Math.random();
-            clients[id] = ws;
-            console.log("+");
+            const ip = eq.connection.remoteAddress;
+            clients.push({ ip, ws })
 
-            for (var key in clients) {
-                console.log(key);
-            }
+            console.log('соединение открыто ' + ip);
+            console.log('соединение открыто ' + clients.length);
+
             ws.on('message', function (response) {
 
                 let message = JSON.parse(response);
 
                 switch (message.type) {
                     case "video-offer":
-                        offers.push({ id, ...message });
+                        offers.push({ ip, ...message });
                         break;
 
                     case "delete-offer":
                         offers = offers.filter(value => {
-                            return value.id !== message.id;
+                            return value.ip !== message.ip;
                         });
                     default:
                         break;
                 }
 
-                for (var key in clients) {
-                    clients[key].send(JSON.stringify({ type: "video-offer", offers }));
-                    console.log();
-                }
+                array.forEach(client => {
+                    client.send(JSON.stringify({ type: "video-offer", offers }));
+                });
             });
 
             ws.on('close', function () {
-                console.log('соединение закрыто ' + id);
-                offers = offers.filter(function (value, index, arr) {
-                    return value.id !== id;
+                console.log('соединение закрыто ' + ip);
+                offers = offers.filter(function (offer) {
+                    return offer.ip !== ip;
                 });
+                clients = clients.filter(function (client) {
+                    return client.ip !== ip;
+                });
+            console.log('соединение открыто ' + clients.length);
 
             });
 
