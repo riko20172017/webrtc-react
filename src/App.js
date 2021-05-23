@@ -1,10 +1,10 @@
 import { useRef, useState } from "react";
+import useSocket from "./hooks/useSocket";
 
 
 function App() {
   const [buttons, setButtons] = useState({ start: false, call: false, hangup: false });
   const [stream, setStream] = useState(null);
-  const [offers, setOffers] = useState([]);
 
   const video = useRef(null);
   let connection;
@@ -15,39 +15,7 @@ function App() {
 
   let offerId;
 
-  const socket = new WebSocket("wss://192.168.0.18:8000");
-
-  socket.onopen = function (e) {
-    console.log("[open] Соединение установлено");
-    //   socket.send("Меня зовут Джон");
-  };
-
-  socket.onmessage = function (event) {
-    const message = JSON.parse(event.data);
-    console.log(message);
-
-    switch (message.type) {
-      case "video-offer":
-        setOffers(message.offers);
-        break;
-      default:
-        break;
-    }
-  };
-
-  socket.onclose = function (event) {
-    if (event.wasClean) {
-      console.log(`[close] Соединение закрыто чисто, код=${event.code} причина=${event.reason}`);
-    } else {
-      // например, сервер убил процесс или сеть недоступна
-      // обычно в этом случае event.code 1006
-      console.log('[close] Соединение прервано');
-    }
-  };
-
-  socket.onerror = function (error) {
-    console.log(`[error] ${error.message}`);
-  };
+  const [send, offers] = useSocket("wss://192.168.0.18:8000");
 
   async function start() {
     console.log('Requesting local stream');
@@ -80,7 +48,7 @@ function App() {
     try {
       console.log('pc1 createOffer start');
       const offer = await connection.createOffer(offerOptions);
-      await onCreateOfferSuccess(offer, connection, socket);
+      await onCreateOfferSuccess(offer, connection, send);
     } catch (e) {
       onCreateSessionDescriptionError(e);
     }
@@ -96,10 +64,11 @@ function App() {
         <div className="box">
           <button onClick={start} disabled={buttons.start}>Start</button>
           <button onClick={call} disabled={buttons.call}>Call</button>
-          <button id="hangupButton">Hang Up</button>
+  
+          <button id="hangupButton" onClick={()=>send({})}>Hang Up</button>
         </div>
         <ul>
-          {offers.map(offer => <li>{offer.id}</li>)}
+          {offers && offers.map(offer => <li>{offer.id}</li>)}
         </ul>
       </div>
     </div>
@@ -110,13 +79,13 @@ function onCreateSessionDescriptionError(error) {
   console.log(`Failed to create session description: ${error.toString()}`);
 }
 
-async function onCreateOfferSuccess(offer, connection, socket) {
+async function onCreateOfferSuccess(offer, connection, send) {
   // console.log(`Offer from pc1\n${offer.sdp}`);
   // console.log('pc1 setLocalDescription start');
   try {
     await connection.setLocalDescription(offer);
     onSetLocalSuccess(connection);
-    socket.send(JSON.stringify({ type: "video-offer", sdp: offer.sdp }))
+    send(JSON.stringify({ type: "video-offer", sdp: offer.sdp }))
 
   } catch (e) {
     onSetSessionDescriptionError();
