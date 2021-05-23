@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 function useSocket(dest) {
     const [message, setMessage] = useState(null);
     const [offers, setOffers] = useState(null);
+    const [users, setUsers] = useState(null);
 
     const ws = useRef(null)
 
@@ -20,6 +21,8 @@ function useSocket(dest) {
                 case "video-offer":
                     setOffers(message.offers);
                     break;
+                case "user-list":
+                    setUsers(message.data)
                 default:
                     break;
             }
@@ -49,7 +52,7 @@ function useSocket(dest) {
     }, [message])
 
 
-    return [setMessage, offers];
+    return [setMessage, offers, users];
 }
 
 export default useSocket;

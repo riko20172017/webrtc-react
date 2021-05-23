@@ -15,7 +15,7 @@ function App() {
 
   let offerId;
 
-  const [send, offers] = useSocket("wss://192.168.0.18:8000");
+  const [send, offers, users] = useSocket("wss://192.168.0.18:8000");
 
   async function start() {
     console.log('Requesting local stream');
@@ -64,9 +64,12 @@ function App() {
         <div className="box">
           <button onClick={start} disabled={buttons.start}>Start</button>
           <button onClick={call} disabled={buttons.call}>Call</button>
-  
-          <button id="hangupButton" onClick={()=>send({})}>Hang Up</button>
+
+          <button id="hangupButton" onClick={() => send({})}>Hang Up</button>
         </div>
+        <ul>
+          {users && users.map(user => <li key={user}>{user}</li>)}
+        </ul>
         <ul>
           {offers && offers.map(offer => <li>{offer.id}</li>)}
         </ul>

@@ -3,7 +3,7 @@ const https = require('https');
 const fs = require('fs');
 const WebSocket = require('ws');
 
-var clients = [];
+var users = [];
 var offers = [];
 
 // process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
@@ -22,7 +22,7 @@ class App {
         router.all('/', (req, res) => res.send('Hi there!'));
         this.express.use('/', router);
         //  Server creation starts here
-        const server = https.createServer({ key, cert}, this.express);
+        const server = https.createServer({ key, cert }, this.express);
         const port = 8000;
         server.listen(port, err => {
             if (err) {
@@ -35,10 +35,12 @@ class App {
         ws.on('connection', function (ws, eq) {
 
             const ip = eq.connection.remoteAddress;
-            clients.push({ ip, ws })
+            users.push({ ip, ws })
+
+            users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: users.map(user => user.ip) })))
 
             console.log('соединение открыто ' + ip);
-            console.log('соединение открыто ' + clients.length);
+            console.log('соединение открыто ' + users.length);
 
             ws.on('message', function (response) {
 
@@ -67,10 +69,12 @@ class App {
                 offers = offers.filter(function (offer) {
                     return offer.ip !== ip;
                 });
-                clients = clients.filter(function (client) {
+                users = users.filter(function (client) {
                     return client.ip !== ip;
                 });
-            console.log('соединение открыто ' + clients.length);
+                console.log('соединение открыто ' + users.length);
+
+                users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: users.map(user => user.ip) })))
 
             });
 
