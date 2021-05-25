@@ -10,7 +10,7 @@ var offers = [];
 
 class Server {
 
-    DEFAULT_PORT = 5000;
+    DEFAULT_PORT = 8000;
     users = [];
 
     constructor() {
@@ -62,50 +62,61 @@ class Server {
             );
 
             if (!existingUser) {
-                this.users.push({ ip, socket })
-                // this.users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: this.users.map(user => user.ip) })))
+                // this.users.push({ ip, socket })
+                this.users.push({ ip })
+                console.log('connected new user:' + ' ' + ip);
             }
 
-
-
-            console.log('соединение открыто ' + ip);
-            console.log('соединение открыто ' + this.users.length);
-
-            socket.on('message', (response) => {
-
-                let message = JSON.parse(response);
-
-                switch (message.type) {
-                    case "video-offer":
-                        offers.push({ ip, ...message });
-                        break;
-
-                    case "delete-offer":
-                        offers = offers.filter(value => {
-                            return value.ip !== message.ip;
-                        });
-                    default:
-                        break;
+            this.socketServer.clients.forEach((client) => {
+                if (client.readyState === WebSocket.OPEN) {
+                    client.send(JSON.stringify(this.users));
                 }
+            });
 
-                array.forEach(client => {
-                    client.send(JSON.stringify({ type: "video-offer", offers }));
+            socket.on('message', (message) => {
+                this.socketServer.clients.forEach((client) => {
+                    if (client !== ws && client.readyState === WebSocket.OPEN) {
+                        client.send(data);
+                    }
                 });
             });
 
-            socket.on('close', () => {
-                console.log('соединение закрыто ' + ip);
-                offers = offers.filter(function (offer) {
-                    return offer.ip !== ip;
-                });
-                this.users = this.users.filter(function (client) {
-                    return client.ip !== ip;
-                });
-                console.log('соединение открыто ' + this.users.length);
 
-                this.users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: this.users.map(user => user.ip) })))
+            // socket.on('message', (response) => {
 
-            });
+            //     let message = JSON.parse(response);
+
+            //     switch (message.type) {
+            //         case "video-offer":
+            //             offers.push({ ip, ...message });
+            //             break;
+
+            //         case "delete-offer":
+            //             offers = offers.filter(value => {
+            //                 return value.ip !== message.ip;
+            //             });
+            //         default:
+            //             break;
+            //     }
+
+            //     array.forEach(client => {
+            //         client.send(JSON.stringify({ type: "video-offer", offers }));
+            //     });
+            // });
+
+            // socket.on('close', () => {
+            //     console.log('соединение закрыто ' + ip);
+            //     offers = offers.filter(function (offer) {
+            //         return offer.ip !== ip;
+            //     });
+            //     this.users = this.users.filter(function (client) {
+            //         return client.ip !== ip;
+            //     });
+            //     console.log('соединение открыто ' + this.users.length);
+
+            //     this.users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: this.users.map(user => user.ip) })))
+
+            // });
 
         });
     }
@@ -116,5 +127,5 @@ class Server {
 const server = new Server();
 
 server.start(port => {
-    console.log(`Server is listening on http://localhost:${port}`);
+    console.log(`Server is listening on https://localhost:${port}`);
 });
