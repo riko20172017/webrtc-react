@@ -2,47 +2,76 @@ const express = require('express');
 const https = require('https');
 const fs = require('fs');
 const WebSocket = require('ws');
+const path = require('path');
 
-var users = [];
 var offers = [];
 
 // process.env.NODE_TLS_REJECT_UNAUTHORIZED = "0";
 
-class App {
-    express;
+class Server {
+
+    DEFAULT_PORT = 5000;
+    users = [];
+
     constructor() {
-        this.startServer();
+        this.initialize();
+        this.handleRoutes();
+
+        this.configureApp();
+        this.handleSocketConnection();
+
+        // this.startServer();
     }
-    startServer() {
-        this.express = express();
-        const key = fs.readFileSync(__dirname + '/key1.pem');
-        const cert = fs.readFileSync(__dirname + '/cert1.pem');
-        //  Set up routes (and middlewares if we had any)
-        const router = express.Router();
-        router.all('/', (req, res) => res.send('Hi there!'));
-        this.express.use('/', router);
-        //  Server creation starts here
-        const server = https.createServer({ key, cert }, this.express);
-        const port = 8000;
-        server.listen(port, err => {
-            if (err) {
-                console.log('Well, this didn\'t work...');
-                process.exit();
-            }
-            console.log('Server is listening on port ' + port);
+
+    initialize() {
+        this.appServer = express();
+        this.httpServer = https.createServer(this.getSSLcerts(), this.appServer);
+        this.socketServer = new WebSocket.Server({ server: this.httpServer });
+    }
+
+    configureApp() {
+        this.appServer.use(express.static(path.join(__dirname, "../public")));
+    }
+
+    getSSLcerts() {
+        return {
+            key: fs.readFileSync(__dirname + '/key1.pem'),
+            cert: fs.readFileSync(__dirname + '/cert1.pem')
+        }
+    }
+
+    handleRoutes() {
+        this.appServer.get("/", (req, res) => {
+            res.send(`<h1>Hello World</h1>`);
         });
-        const ws = new WebSocket.Server({ server: server });
-        ws.on('connection', function (ws, eq) {
+    }
+
+    start(callback) {
+        this.httpServer.listen(this.DEFAULT_PORT, () =>
+            callback(this.DEFAULT_PORT)
+        );
+    }
+
+    handleSocketConnection() {
+        this.socketServer.on('connection', (socket, eq) => {
 
             const ip = eq.connection.remoteAddress;
-            users.push({ ip, ws })
 
-            users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: users.map(user => user.ip) })))
+            const existingUser = this.users.find(
+                user => user.ip === ip
+            );
+
+            if (!existingUser) {
+                this.users.push({ ip, socket })
+                // this.users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: this.users.map(user => user.ip) })))
+            }
+
+
 
             console.log('соединение открыто ' + ip);
-            console.log('соединение открыто ' + users.length);
+            console.log('соединение открыто ' + this.users.length);
 
-            ws.on('message', function (response) {
+            socket.on('message', (response) => {
 
                 let message = JSON.parse(response);
 
@@ -64,22 +93,28 @@ class App {
                 });
             });
 
-            ws.on('close', function () {
+            socket.on('close', () => {
                 console.log('соединение закрыто ' + ip);
                 offers = offers.filter(function (offer) {
                     return offer.ip !== ip;
                 });
-                users = users.filter(function (client) {
+                this.users = this.users.filter(function (client) {
                     return client.ip !== ip;
                 });
-                console.log('соединение открыто ' + users.length);
+                console.log('соединение открыто ' + this.users.length);
 
-                users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: users.map(user => user.ip) })))
+                this.users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: this.users.map(user => user.ip) })))
 
             });
 
         });
-
     }
+
+
 }
-new App().express;
+
+const server = new Server();
+
+server.start(port => {
+    console.log(`Server is listening on http://localhost:${port}`);
+});
