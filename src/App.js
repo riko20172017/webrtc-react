@@ -15,7 +15,7 @@ function App() {
 
   let offerId;
 
-  const [send, offers, users] = useSocket("wss://192.168.0.18:8000");
+  const [send, offers, users] = useSocket("wss://10.0.11.47:8000");
 
   async function start() {
     console.log('Requesting local stream');

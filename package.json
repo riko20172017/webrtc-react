@@ -15,10 +15,11 @@
     "ws": "^7.4.5"
   },
   "scripts": {
-    "start": "HTTPS=true react-scripts start",
+    "start": "set HTTPS=true&&react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "eject": "react-scripts eject"
+    "eject": "react-scripts eject",
+    "gssl": "openssl genrsa -out key1.pem && openssl req -new -key key1.pem -out csr1.pem -config ssl.conf && openssl x509 -req -days 9999 -in csr1.pem -signkey key1.pem -out cert1.pem -extensions req_ext -extfile ssl.conf && rm csr1.pem"
   },
   "eslintConfig": {
     "extends": [
