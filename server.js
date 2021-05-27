@@ -52,33 +52,44 @@ class Server {
         );
     }
 
+    existingUser(ip) {
+        return this.users.find(
+            user => user.ip === ip
+        );
+    }
+
+    addUser() {
+        this.users.push({ ip })
+        console.log('connected new user:' + ' ' + ip);
+    }
+
+    sendToAll(message) {
+        this.socketServer.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN) {
+                client.send(JSON.stringify(message));
+            }
+        });
+    }
+
     handleSocketConnection() {
         this.socketServer.on('connection', (socket, eq) => {
 
             const ip = eq.connection.remoteAddress;
 
-            const existingUser = this.users.find(
-                user => user.ip === ip
-            );
-
-            if (!existingUser) {
-                // this.users.push({ ip, socket })
-                this.users.push({ ip })
-                console.log('connected new user:' + ' ' + ip);
+            if (!existingUser(ip)) {
+                this.addUser(ip);
             }
 
-            this.socketServer.clients.forEach((client) => {
-                if (client.readyState === WebSocket.OPEN) {
-                    client.send(JSON.stringify(this.users));
-                }
-            });
+            this.sendToAll(this.users)
+
+            // this.socketServer.clients.forEach((client) => {
+            //     if (client !== ws && client.readyState === WebSocket.OPEN) {
+            //         client.send(JSON.stringify(message));
+            //     }
+            // });
 
             socket.on('message', (message) => {
-                this.socketServer.clients.forEach((client) => {
-                    if (client !== ws && client.readyState === WebSocket.OPEN) {
-                        client.send(data);
-                    }
-                });
+                
             });
 
 
@@ -104,19 +115,19 @@ class Server {
             //     });
             // });
 
-            // socket.on('close', () => {
-            //     console.log('соединение закрыто ' + ip);
-            //     offers = offers.filter(function (offer) {
-            //         return offer.ip !== ip;
-            //     });
-            //     this.users = this.users.filter(function (client) {
-            //         return client.ip !== ip;
-            //     });
-            //     console.log('соединение открыто ' + this.users.length);
+            socket.on('close', () => {
+                console.log('соединение закрыто ' + ip);
+                offers = offers.filter(function (offer) {
+                    return offer.ip !== ip;
+                });
+                this.users = this.users.filter(function (client) {
+                    return client.ip !== ip;
+                });
+                console.log('соединение открыто ' + this.users.length);
 
-            //     this.users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: this.users.map(user => user.ip) })))
+                this.users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: this.users.map(user => user.ip) })))
 
-            // });
+            });
 
         });
     }
