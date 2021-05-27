@@ -58,9 +58,14 @@ class Server {
         );
     }
 
-    addUser() {
+    addUser(ip) {
         this.users.push({ ip })
-        console.log('connected new user:' + ' ' + ip);
+    }
+
+    removeIser(ip) {
+        this.users = this.users.filter(
+            user => user.ip !== ip
+        );
     }
 
     sendToAll(message) {
@@ -71,25 +76,32 @@ class Server {
         });
     }
 
+    sendTo(socket, message) {
+        if (socket.readyState === WebSocket.OPEN) {
+            socket.send(JSON.stringify(message));
+        }
+    }
+
     handleSocketConnection() {
         this.socketServer.on('connection', (socket, eq) => {
 
             const ip = eq.connection.remoteAddress;
+            console.log('connected new user:' + ' ' + ip);
 
-            if (!existingUser(ip)) {
+            if (!this.existingUser(ip)) {
                 this.addUser(ip);
+                this.sendToAll({
+                    type: "update-user-list", users: this.users.filter(
+                        user => user.ip !== ip
+                    )
+                })
             }
 
-            this.sendToAll(this.users)
+            this.sendTo(socket, { type: "update-user-list", users: [{ ip }] })
 
-            // this.socketServer.clients.forEach((client) => {
-            //     if (client !== ws && client.readyState === WebSocket.OPEN) {
-            //         client.send(JSON.stringify(message));
-            //     }
-            // });
 
             socket.on('message', (message) => {
-                
+
             });
 
 
@@ -116,17 +128,11 @@ class Server {
             // });
 
             socket.on('close', () => {
+
+                this.removeIser(ip);
+                this.sendToAll({ type: "remove-user", user: ip })
+
                 console.log('соединение закрыто ' + ip);
-                offers = offers.filter(function (offer) {
-                    return offer.ip !== ip;
-                });
-                this.users = this.users.filter(function (client) {
-                    return client.ip !== ip;
-                });
-                console.log('соединение открыто ' + this.users.length);
-
-                this.users.forEach((user) => user.ws.send(JSON.stringify({ type: "user-list", data: this.users.map(user => user.ip) })))
-
             });
 
         });

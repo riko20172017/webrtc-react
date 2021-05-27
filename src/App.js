@@ -53,7 +53,7 @@ function App() {
       onCreateSessionDescriptionError(e);
     }
   }
-
+  console.log(users);
   return (
     <div className="App">
       <header className="App-header">
@@ -68,7 +68,7 @@ function App() {
           <button id="hangupButton" onClick={() => send({})}>Hang Up</button>
         </div>
         <ul>
-          {users && users.map(user => <li key={user}>{user}</li>)}
+          {users && users.map(user => <li key={user.ip}>{user.ip}</li>)}
         </ul>
         <ul>
           {offers && offers.map(offer => <li>{offer.id}</li>)}
