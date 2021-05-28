@@ -53,7 +53,7 @@ function App() {
       onCreateSessionDescriptionError(e);
     }
   }
-  console.log(users);
+
   return (
     <div className="App">
       <header className="App-header">

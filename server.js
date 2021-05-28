@@ -90,15 +90,19 @@ class Server {
 
             if (!this.existingUser(ip)) {
                 this.addUser(ip);
-                this.sendToAll({
+
+                this.sendTo(socket, {
                     type: "update-user-list", users: this.users.filter(
                         user => user.ip !== ip
                     )
                 })
+
+                this.sendToAll({
+                    type: "update-user-list", users: [{ ip }]
+
+                })
+
             }
-
-            this.sendTo(socket, { type: "update-user-list", users: [{ ip }] })
-
 
             socket.on('message', (message) => {
 

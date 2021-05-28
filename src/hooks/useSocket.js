@@ -7,6 +7,7 @@ function useSocket(dest) {
 
     const ws = useRef(null)
 
+
     useEffect(() => {
         if (ws.current === null) {
             ws.current = new WebSocket(dest)
@@ -15,7 +16,7 @@ function useSocket(dest) {
         ws.current.onopen = () => { console.log("[open] Соединение установлено"); }
         ws.current.onmessage = (event) => {
             const message = JSON.parse(event.data);
-            console.log(message);
+
 
             switch (message.type) {
 
@@ -23,7 +24,15 @@ function useSocket(dest) {
                     setOffers(message.offers);
                     break;
                 case "update-user-list":
-                    setUsers([...users, ...message.users])
+                    setUsers((state) => {
+                        return [...new Set([...state, ...message.users])]
+                    })
+                    break;
+                case "remove-user":
+                    setUsers((users) => {
+                        return users.filter(user => user.ip !== message.user)
+                    })
+                    break;
                 default:
                     break;
             }
@@ -42,7 +51,7 @@ function useSocket(dest) {
         };
 
         return () => ws.current.close()
-    }, [dest]);
+    }, []);
 
     useEffect(() => {
         if (message) {
