@@ -14,6 +14,7 @@ function useSocket(dest) {
 
         }
         ws.current.onopen = () => { console.log("[open] Соединение установлено"); }
+
         ws.current.onmessage = (event) => {
             const message = JSON.parse(event.data);
 
@@ -24,8 +25,8 @@ function useSocket(dest) {
                     setOffers(message.offers);
                     break;
                 case "update-user-list":
-                    setUsers((state) => {
-                        return [...new Set([...state, ...message.users])]
+                    setUsers((users) => {
+                        return [...new Set([...users, ...message.users])]
                     })
                     break;
                 case "remove-user":
@@ -51,7 +52,7 @@ function useSocket(dest) {
         };
 
         return () => ws.current.close()
-    }, []);
+    }, [dest]);
 
     useEffect(() => {
         if (message) {
