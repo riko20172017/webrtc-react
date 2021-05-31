@@ -1,74 +1,101 @@
 import { useRef, useState } from "react";
 import useSocket from "./hooks/useSocket";
 
+let connection;
 
 function App() {
   const [buttons, setButtons] = useState({ start: false, call: false, hangup: false });
   const [stream, setStream] = useState(null);
 
   const video = useRef(null);
-  let connection;
+  const remoteVideo = useRef(null);
+  const configuration = {};
+
   const offerOptions = {
     offerToReceiveAudio: 1,
     offerToReceiveVideo: 1
   };
 
-  let offerId;
-
-  const [send, offers, users] = useSocket("wss://10.0.11.47:8000");
+  const [send, offers, users] = useSocket("wss://10.0.11.47:8000", answer, setAnswer);
 
   async function start() {
+    connection = new RTCPeerConnection(configuration);
+
     console.log('Requesting local stream');
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
       setStream(stream)
-      video.current.srcObject = stream;
+
+      const localVideo = document.getElementById("localVideo");
+      if (localVideo) {
+        localVideo.srcObject = stream;
+      }
+
+      // video.current.srcObject = stream;
+      stream.getTracks().forEach(track => connection.addTrack(track, stream));
 
       setButtons({ ...buttons, start: true })
       console.log('Received local stream');
     } catch (e) {
       alert(`getUserMedia() error: ${e}`);
     }
+
+    connection.ontrack = function ({ streams: [stream] }) {
+      const remoteVideo = document.getElementById("remoteVideo");
+      if (remoteVideo) {
+        remoteVideo.srcObject = stream;
+      }
+    };
   }
 
   async function call(ip) {
-    let offer;
     setButtons({ ...buttons, call: true, hangup: false })
     console.log('Starting call');
 
-    const videoTracks = stream.getVideoTracks();
-    const audioTracks = stream.getAudioTracks();
-
-    const configuration = {};
-    connection = new RTCPeerConnection(configuration);
 
     connection.addEventListener('icecandidate', e => onIceCandidate(connection, e));
     connection.addEventListener('iceconnectionstatechange', e => onIceStateChange(connection, e));
 
-    stream.getTracks().forEach(track => connection.addTrack(track, stream));
+    // stream.getTracks().forEach(track => connection.addTrack(track, stream));
 
     console.log('Added local stream to pc1');
 
     try {
-      console.log('pc1 createOffer start');
-
-      offer = await connection.createOffer(offerOptions);
-      console.log(offer);
-      // await onCreateOfferSuccess(offer, connection, send);
-    } catch (e) {
-      onCreateSessionDescriptionError(e);
-    }
-
-    // console.log(`Offer from pc1\n${offer.sdp}`);
-    // console.log('pc1 setLocalDescription start');
-    try {
-      await connection.setLocalDescription(offer);
+      const offer = await connection.createOffer(offerOptions);
+      await connection.setLocalDescription(new RTCSessionDescription(offer));
       onSetLocalSuccess(connection);
 
       send({ type: "call-user", data: offer, ip })
-
     } catch (e) {
-      onSetSessionDescriptionError();
+      console.log(`Failed to create or set local session description: ${e}`);
+    }
+  }
+
+  async function answer(offer, ip) {
+    connection.addEventListener('icecandidate', e => onIceCandidate(connection, e));
+    connection.addEventListener('iceconnectionstatechange', e => onIceStateChange(connection, e));
+    connection.addEventListener('track', gotRemoteStream);
+    try {
+      await connection.setRemoteDescription(
+        new RTCSessionDescription(offer)
+      );
+      const answer = await connection.createAnswer();
+      await connection.setLocalDescription(new RTCSessionDescription(answer));
+      send({ type: "make-answer", data: answer, ip })
+    } catch (e) {
+      console.log(`Failed to create or set remote session description: ${e}`);
+    }
+  }
+
+  async function setAnswer(answer, ip) {
+    console.log(answer);
+    try {
+      await connection.setRemoteDescription(
+        new RTCSessionDescription(answer)
+      );
+    } catch (error) {
+      console.log(`Failed to create set remote answer: ${error}`);
     }
 
   }
@@ -80,6 +107,7 @@ function App() {
       </header>
       <div>
         <video id="localVideo" playsInline autoPlay muted ref={video} width="200" height="200"></video>
+        <video id="remoteVideo" playsInline autoPlay muted ref={remoteVideo} width="200" height="200"></video>
         <div className="box">
           <button onClick={start} disabled={buttons.start}>Start</button>
           <button onClick={call} disabled={buttons.call}>Call</button>
@@ -128,12 +156,13 @@ function onSetSessionDescriptionError(error) {
   console.log(`Failed to set session description: ${error}`);
 }
 
-// function gotRemoteStream(e) { 
-//   if (remoteVideo.srcObject !== e.streams[0]) {
-//     remoteVideo.srcObject = e.streams[0];
-//     console.log('pc2 received remote stream');
-//   }
-// }
+function gotRemoteStream(e) { 
+  const remoteVideo = document.getElementById("remoteVideo");
+  if (remoteVideo.srcObject !== e.streams[0]) {
+    remoteVideo.srcObject = e.streams[0];
+    console.log('pc2 received remote stream');
+  }
+}
 
 // async function onCreateAnswerSuccess(desc) {
 //   console.log(`Answer from pc2:\n${desc.sdp}`);
@@ -154,6 +183,8 @@ function onSetSessionDescriptionError(error) {
 // }
 
 async function onIceCandidate(connection, event) {
+  console.log(connection);
+  console.log(event);
   try {
     await (connection.addIceCandidate(event.candidate));
     onAddIceCandidateSuccess(connection);
