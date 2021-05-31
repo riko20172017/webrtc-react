@@ -82,6 +82,14 @@ class Server {
         }
     }
 
+    sendToIP(ip, message) {
+        this.socketServer.clients.forEach((client) => {
+            if (client.readyState === WebSocket.OPEN && client.ip == ip) {
+                client.send(JSON.stringify(message));
+            }
+        });
+    }
+
     handleSocketConnection() {
         this.socketServer.on('connection', (socket, eq) => {
 
@@ -89,6 +97,8 @@ class Server {
             console.log('connected new user:' + ' ' + ip);
 
             if (!this.existingUser(ip)) {
+                socket.ip = ip;
+
                 this.addUser(ip);
 
                 this.sendTo(socket, {
@@ -104,32 +114,19 @@ class Server {
 
             }
 
-            socket.on('message', (message) => {
+            socket.on('message', (response) => {
 
+                let message = JSON.parse(response);
+
+                switch (message.type) {
+                    case "call-user":
+                        this.sendToIP(message.ip, { type: "call-made", data: message.data, ip: socket.ip })
+                        break;
+
+                    default:
+                        break;
+                }
             });
-
-
-            // socket.on('message', (response) => {
-
-            //     let message = JSON.parse(response);
-
-            //     switch (message.type) {
-            //         case "video-offer":
-            //             offers.push({ ip, ...message });
-            //             break;
-
-            //         case "delete-offer":
-            //             offers = offers.filter(value => {
-            //                 return value.ip !== message.ip;
-            //             });
-            //         default:
-            //             break;
-            //     }
-
-            //     array.forEach(client => {
-            //         client.send(JSON.stringify({ type: "video-offer", offers }));
-            //     });
-            // });
 
             socket.on('close', () => {
 
@@ -138,7 +135,6 @@ class Server {
 
                 console.log('соединение закрыто ' + ip);
             });
-
         });
     }
 
