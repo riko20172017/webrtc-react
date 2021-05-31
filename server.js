@@ -122,7 +122,9 @@ class Server {
                     case "call-user":
                         this.sendToIP(message.ip, { type: "call-made", data: message.data, ip: socket.ip })
                         break;
-
+                    case "make-answer":
+                        this.sendToIP(message.ip, { type: "answer-made", data: message.data, ip: socket.ip })
+                        break;
                     default:
                         break;
                 }
