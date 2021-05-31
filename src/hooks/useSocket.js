@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 
-function useSocket(dest) {
+function useSocket(dest, answer, setAnswer) {
     const [message, setMessage] = useState(null);
     const [offers, setOffers] = useState(null);
     const [users, setUsers] = useState([]);
@@ -21,8 +21,11 @@ function useSocket(dest) {
 
             switch (message.type) {
 
-                case "video-offer":
-                    setOffers(message.offers);
+                case "call-made":
+                    answer(message.data, message.ip);
+                    break;
+                case "answer-made":
+                    setAnswer(message.data, message.ip);
                     break;
                 case "update-user-list":
                     setUsers((users) => {
