@@ -31,7 +31,8 @@ function App() {
     }
   }
 
-  async function call() {
+  async function call(ip) {
+    let offer;
     setButtons({ ...buttons, call: true, hangup: false })
     console.log('Starting call');
 
@@ -40,18 +41,36 @@ function App() {
 
     const configuration = {};
     connection = new RTCPeerConnection(configuration);
+
     connection.addEventListener('icecandidate', e => onIceCandidate(connection, e));
     connection.addEventListener('iceconnectionstatechange', e => onIceStateChange(connection, e));
+
     stream.getTracks().forEach(track => connection.addTrack(track, stream));
+
     console.log('Added local stream to pc1');
 
     try {
       console.log('pc1 createOffer start');
-      const offer = await connection.createOffer(offerOptions);
-      await onCreateOfferSuccess(offer, connection, send);
+
+      offer = await connection.createOffer(offerOptions);
+      console.log(offer);
+      // await onCreateOfferSuccess(offer, connection, send);
     } catch (e) {
       onCreateSessionDescriptionError(e);
     }
+
+    // console.log(`Offer from pc1\n${offer.sdp}`);
+    // console.log('pc1 setLocalDescription start');
+    try {
+      await connection.setLocalDescription(offer);
+      onSetLocalSuccess(connection);
+
+      send({ type: "call-user", data: offer, ip })
+
+    } catch (e) {
+      onSetSessionDescriptionError();
+    }
+
   }
 
   return (
@@ -68,7 +87,7 @@ function App() {
           <button id="hangupButton" onClick={() => send({})}>Hang Up</button>
         </div>
         <ul>
-          {users && users.map(user => <li key={user.ip}>{user.ip}</li>)}
+          {users && users.map(user => <li key={user.ip} onClick={() => call(user.ip)}>{user.ip}</li>)}
         </ul>
         <ul>
           {offers && offers.map(offer => <li>{offer.id}</li>)}
@@ -83,16 +102,7 @@ function onCreateSessionDescriptionError(error) {
 }
 
 async function onCreateOfferSuccess(offer, connection, send) {
-  // console.log(`Offer from pc1\n${offer.sdp}`);
-  // console.log('pc1 setLocalDescription start');
-  try {
-    await connection.setLocalDescription(offer);
-    onSetLocalSuccess(connection);
-    send(JSON.stringify({ type: "video-offer", sdp: offer.sdp }))
 
-  } catch (e) {
-    onSetSessionDescriptionError();
-  }
 
   // console.log('pc2 createAnswer start');
   // // Since the 'remote' side has no media stream we need
@@ -115,7 +125,7 @@ function onSetLocalSuccess(connection) {
 // }
 
 function onSetSessionDescriptionError(error) {
-  console.log(`Failed to set session description: ${error.toString()}`);
+  console.log(`Failed to set session description: ${error}`);
 }
 
 // function gotRemoteStream(e) { 
