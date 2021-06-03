@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import useSocket from "./hooks/useSocket";
 
 let connection;
@@ -18,39 +18,43 @@ function App() {
 
   const [send, offers, users] = useSocket("wss://10.0.11.47:8000", answer, setAnswer);
 
-  async function start() {
-    connection = new RTCPeerConnection(configuration);
 
-    console.log('Requesting local stream');
 
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
-      setStream(stream)
+  useEffect(() => {
+    async function start() {
+      connection = new RTCPeerConnection(configuration);
 
-      const localVideo = document.getElementById("localVideo");
-      if (localVideo) {
-        localVideo.srcObject = stream;
+      console.log('Requesting local stream');
+
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true, video: true });
+        setStream(stream)
+
+        const localVideo = document.getElementById("localVideo");
+        if (localVideo) {
+          localVideo.srcObject = stream;
+        }
+
+        // video.current.srcObject = stream;
+        stream.getTracks().forEach(track => connection.addTrack(track, stream));
+
+        setButtons({ ...buttons, start: true })
+        console.log('Received local stream');
+      } catch (e) {
+        alert(`getUserMedia() error: ${e}`);
       }
 
-      // video.current.srcObject = stream;
-      stream.getTracks().forEach(track => connection.addTrack(track, stream));
-
-      setButtons({ ...buttons, start: true })
-      console.log('Received local stream');
-    } catch (e) {
-      alert(`getUserMedia() error: ${e}`);
+      connection.ontrack = function ({ streams: [stream] }) {
+        const remoteVideo = document.getElementById("remoteVideo");
+        if (remoteVideo) {
+          remoteVideo.srcObject = stream;
+        }
+      };
     }
-
-    connection.ontrack = function ({ streams: [stream] }) {
-      const remoteVideo = document.getElementById("remoteVideo");
-      if (remoteVideo) {
-        remoteVideo.srcObject = stream;
-      }
-    };
-  }
+    start()
+  }, [])
 
   async function call(ip) {
-    setButtons({ ...buttons, call: true, hangup: false })
     console.log('Starting call');
 
 
@@ -64,15 +68,17 @@ function App() {
     try {
       const offer = await connection.createOffer(offerOptions);
       await connection.setLocalDescription(new RTCSessionDescription(offer));
-      onSetLocalSuccess(connection);
+      console.log(`setLocalDescription complete`);
 
       send({ type: "call-user", data: offer, ip })
+      console.log(`%c Sended offer to ${ip}`, 'background: #222; color: #bada55');
     } catch (e) {
       console.log(`Failed to create or set local session description: ${e}`);
     }
   }
 
   async function answer(offer, ip) {
+    console.log(`%c Got offer from ${ip}`, 'background: #222; color: #bada55')
     connection.addEventListener('icecandidate', e => onIceCandidate(connection, e));
     connection.addEventListener('iceconnectionstatechange', e => onIceStateChange(connection, e));
     connection.addEventListener('track', gotRemoteStream);
@@ -80,20 +86,24 @@ function App() {
       await connection.setRemoteDescription(
         new RTCSessionDescription(offer)
       );
+      console.log(`%c Set remote description ${ip}`, 'color: #0073ce')
       const answer = await connection.createAnswer();
       await connection.setLocalDescription(new RTCSessionDescription(answer));
       send({ type: "make-answer", data: answer, ip })
+      console.log(`%c Sended answer to ${ip}`, 'color: #0073ce')
     } catch (e) {
       console.log(`Failed to create or set remote session description: ${e}`);
     }
   }
 
   async function setAnswer(answer, ip) {
-    console.log(answer);
+    console.log(`%c Got answer from ${ip}`, 'background: #222; color: #bada55')
     try {
       await connection.setRemoteDescription(
         new RTCSessionDescription(answer)
       );
+      console.log(`%c Set remote description from ${ip}`, 'color: #0073ce')
+
     } catch (error) {
       console.log(`Failed to create set remote answer: ${error}`);
     }
@@ -109,7 +119,6 @@ function App() {
         <video id="localVideo" playsInline autoPlay muted ref={video} width="200" height="200"></video>
         <video id="remoteVideo" playsInline autoPlay muted ref={remoteVideo} width="200" height="200"></video>
         <div className="box">
-          <button onClick={start} disabled={buttons.start}>Start</button>
           <button onClick={call} disabled={buttons.call}>Call</button>
 
           <button id="hangupButton" onClick={() => send({})}>Hang Up</button>
@@ -125,38 +134,7 @@ function App() {
   );
 }
 
-function onCreateSessionDescriptionError(error) {
-  console.log(`Failed to create session description: ${error.toString()}`);
-}
-
-async function onCreateOfferSuccess(offer, connection, send) {
-
-
-  // console.log('pc2 createAnswer start');
-  // // Since the 'remote' side has no media stream we need
-  // // to pass in the right constraints in order for it to
-  // // accept the incoming offer of audio and video.
-  // try {
-  //   const answer = await pc2.createAnswer();
-  //   await onCreateAnswerSuccess(answer);
-  // } catch (e) {
-  //   onCreateSessionDescriptionError(e);
-  // }
-}
-
-function onSetLocalSuccess(connection) {
-  console.log(`${connection} setLocalDescription complete`);
-}
-
-// function onSetRemoteSuccess(connection) {
-//   console.log(`${connection} setRemoteDescription complete`);
-// }
-
-function onSetSessionDescriptionError(error) {
-  console.log(`Failed to set session description: ${error}`);
-}
-
-function gotRemoteStream(e) { 
+function gotRemoteStream(e) {
   const remoteVideo = document.getElementById("remoteVideo");
   if (remoteVideo.srcObject !== e.streams[0]) {
     remoteVideo.srcObject = e.streams[0];
@@ -164,48 +142,21 @@ function gotRemoteStream(e) {
   }
 }
 
-// async function onCreateAnswerSuccess(desc) {
-//   console.log(`Answer from pc2:\n${desc.sdp}`);
-//   console.log('pc2 setLocalDescription start');
-//   try {
-//     await pc2.setLocalDescription(desc);
-//     onSetLocalSuccess(pc2);
-//   } catch (e) {
-//     onSetSessionDescriptionError(e);
-//   }
-//   console.log('pc1 setRemoteDescription start');
-//   try {
-//     await pc1.setRemoteDescription(desc);
-//     onSetRemoteSuccess(pc1);
-//   } catch (e) {
-//     onSetSessionDescriptionError(e);
-//   }
-// }
-
 async function onIceCandidate(connection, event) {
-  console.log(connection);
-  console.log(event);
+  console.log("onicecandidate");
   try {
     await (connection.addIceCandidate(event.candidate));
-    onAddIceCandidateSuccess(connection);
+    console.log(`addIceCandidate success`);
   } catch (e) {
-    onAddIceCandidateError(connection, e);
+    console.log(`Failed to add ICE Candidate: ${e.toString()}`);
   }
-  console.log(`${connection} ICE candidate:\n${event.candidate ? event.candidate.candidate : '(null)'}`);
-}
-
-function onAddIceCandidateSuccess(connection) {
-  console.log(`${connection} addIceCandidate success`);
-}
-
-function onAddIceCandidateError(connection, error) {
-  console.log(`${connection} failed to add ICE Candidate: ${error.toString()}`);
+  console.log(`ICE candidate is: ${event.candidate ? event.candidate.candidate : '(null)'}`);
 }
 
 function onIceStateChange(connection, event) {
+  console.log("onIceStateChange");
   if (connection) {
-    console.log(`${connection} ICE state: ${connection.iceConnectionState}`);
-    console.log('ICE state change event: ', event);
+    console.log(`ICE state: ${connection.iceConnectionState}`);
   }
 }
 
