@@ -35,8 +35,8 @@ class Server {
 
     getSSLcerts() {
         return {
-            key: fs.readFileSync(__dirname + '/key1.pem'),
-            cert: fs.readFileSync(__dirname + '/cert1.pem')
+            key: fs.readFileSync(__dirname + '/ssl/key1.pem'),
+            cert: fs.readFileSync(__dirname + '/ssl/cert1.pem')
         }
     }
 
