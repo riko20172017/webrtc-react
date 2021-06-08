@@ -47,6 +47,7 @@ function App() {
       connection.ontrack = function ({ streams: [stream] }) {
         const remoteVideo = document.getElementById("remoteVideo");
         if (remoteVideo) {
+          console.log("ontrack");
           remoteVideo.srcObject = stream;
         }
       };
@@ -58,8 +59,8 @@ function App() {
     console.log('Starting call');
 
 
-    connection.addEventListener('icecandidate', e => onIceCandidate(connection, e));
-    connection.addEventListener('iceconnectionstatechange', e => onIceStateChange(connection, e));
+    //connection.addEventListener('icecandidate', e => onIceCandidate(connection, e));
+    //connection.addEventListener('iceconnectionstatechange', e => onIceStateChange(connection, e));
 
     // stream.getTracks().forEach(track => connection.addTrack(track, stream));
 
@@ -79,8 +80,8 @@ function App() {
 
   async function answer(offer, ip) {
     console.log(`%c Got offer from ${ip}`, 'background: #222; color: #bada55')
-    connection.addEventListener('icecandidate', e => onIceCandidate(connection, e));
-    connection.addEventListener('iceconnectionstatechange', e => onIceStateChange(connection, e));
+    // connection.addEventListener('icecandidate', e => onIceCandidate(connection, e));
+    // connection.addEventListener('iceconnectionstatechange', e => onIceStateChange(connection, e));
     connection.addEventListener('track', gotRemoteStream);
     try {
       await connection.setRemoteDescription(
